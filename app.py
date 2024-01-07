@@ -10,6 +10,8 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
 
+import pickle 
+import os
 
 load_dotenv()
 
@@ -94,6 +96,27 @@ def markdown():
         unsafe_allow_html=True
     )
 
+def check_and_load_pickle_files(pdfs):
+    pickle_data = {}
+
+    for each_pdf in pdfs:
+        pickle_file = each_pdf.replace('.pdf', '.pickle')
+
+        # check if pickle version of this pdf exist 
+        if os.path.exists(pickle_file):
+            with open(pickle_file, 'rb') as file:
+                pickle_data[each_pdf] = pickle.load(file)
+        
+       
+
+    return pickle_data
+
+
+
+
+
+
+
 def main():
     st.set_page_config(page_title='Chat With Your PDF', page_icon=":books:")
     st.header("Chat With Multiple PDFs")
@@ -123,15 +146,15 @@ def main():
                 
                 raw_text = get_pdf_text(pdfs)
 
+               
                 # split to chunks 
                 text_chunks =  get_text_chunks(raw_text)
-
-                # create a fiass vector store 
+                    # create a fiass vector store 
                 vector_store = openai_vector_store(text_chunks)
 
                 #create conversation chain 
                 st.session_state.conversation_chain = create_conversation_chain(vector_store)
-                st.write(vector_store)
+                # st.write(vector_store)
                 # st.success("Done processing ")
         
 
