@@ -13,6 +13,7 @@ from langchain_community.chat_models import ChatOpenAI
 import pickle 
 import os
 
+
 load_dotenv()
 
 def get_pdf_text(pdfs):
@@ -106,15 +107,7 @@ def check_and_load_pickle_files(pdfs):
         if os.path.exists(pickle_file):
             with open(pickle_file, 'rb') as file:
                 pickle_data[each_pdf] = pickle.load(file)
-        
-       
-
     return pickle_data
-
-
-
-
-
 
 
 def main():
@@ -139,7 +132,9 @@ def main():
     # set a sidebar and put things in it 
     with st.sidebar:
         st.subheader("Your documents")
-        pdfs = st.file_uploader("Upload your pdf here and click on process", accept_multiple_files=True)
+    
+        pdfs = st.file_uploader("Upload your pdf here and click on process", accept_multiple_files=True, type="pdf")
+
         st.session_state.files = pdfs
         if st.button("Process"):
             with st.spinner("Processing"):
