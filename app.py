@@ -5,10 +5,11 @@ from langchain.text_splitter import CharacterTextSplitter
 
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from langchain_community.embeddings.huggingface import HuggingFaceInstructEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores.faiss import FAISS
 from langchain.memory import ConversationBufferMemory 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
+
 
 load_dotenv()
 
@@ -39,20 +40,84 @@ def huggingface_vector_store(texts):
 
 def create_conversation_chain(vector_store):
     llm= ChatOpenAI()
-    memory = ConversationBufferMemory(memory_key='history', ai_prefix='AI', return_messages=True, human_prefix="Human")
-    conversation_chain = ConversationalRetrievalChain.from_llm(llm, memory, retriever=vector_store.as_retriever())
+    memory = ConversationBufferMemory(memory_key='chat_history',  return_messages=True)
+    conversation_chain = ConversationalRetrievalChain.from_llm(llm=llm, memory=memory, retriever=vector_store.as_retriever())
     return conversation_chain
 
+def handle_user_question(prompt):
+    pdfs = st.session_state.files
+    if(len(pdfs) < 1):
+        return st.warning('Please upload a PDF(s) and click on the Process button to begin', icon="⚠️")
+    else:
+        
+        response = st.session_state.conversation_chain({"question": prompt})
+        st.session_state.chat_history = response['chat_history']
+        
+        for i, message in enumerate(st.session_state.chat_history):
+            if i % 2 == 0:
+                human = st.chat_message("user")
+                # human.write(message.content, width=400, key='user_message')
+                human.markdown(f"<div class='user-msg'>{message.content}</div>", unsafe_allow_html=True)
+            else:
+                 ai_assistant =  st.chat_message('AI')
+                #  ai_assistant.markdown(message.content)
+                 ai_assistant.markdown(f"<div class='ai-msg'>{message.content}</div>", unsafe_allow_html=True)
+        
+
+def markdown():
+    return st.markdown(
+        """
+        <style>
+            /* Style for user message */
+            .user-msg {
+                background-color: #000000;
+                color: #ffffff;
+                padding: 8px;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                width: fit-content;
+                max-width: 70%;
+            }
+            /* Style for AI message */
+            .ai-msg {
+                background-color: #333333;
+                color: #ffffff;
+                padding: 8px;
+                border-radius: 8px;
+                margin-bottom: 10px;
+                width: fit-content;
+                max-width: 70%;
+                align-self: flex-end;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 def main():
     st.set_page_config(page_title='Chat With Your PDF', page_icon=":books:")
     st.header("Chat With Multiple PDFs")
-    st.text_input("Ask questions about your documents")
+    markdown()
+
+    if 'conversation_chain' not in st.session_state:
+        st.session_state.conversation_chain = None 
+        # st.write('no conversation')
+    # st.text_input("Ask questions about your documents")
+        
+    ai_assistant =  st.chat_message('AI')
+    ai_assistant.write("Hello, I'm Bob's AI assistant, Please upload a pdf, click on the Process button and let's chat")
+
+    prompt = st.chat_input('Ask something')
+    if prompt:
+        handle_user_question(prompt)
+
+   
 
     # set a sidebar and put things in it 
     with st.sidebar:
         st.subheader("Your documents")
         pdfs = st.file_uploader("Upload your pdf here and click on process", accept_multiple_files=True)
+        st.session_state.files = pdfs
         if st.button("Process"):
             with st.spinner("Processing"):
                 
@@ -65,7 +130,7 @@ def main():
                 vector_store = openai_vector_store(text_chunks)
 
                 #create conversation chain 
-                conversation_chain = create_conversation_chain(vector_store)
+                st.session_state.conversation_chain = create_conversation_chain(vector_store)
                 st.write(vector_store)
                 # st.success("Done processing ")
         
