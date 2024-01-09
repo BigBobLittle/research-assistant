@@ -12,6 +12,7 @@ from langchain_community.chat_models import ChatOpenAI
 
 import pickle 
 import os
+from docx import Document
 
 # load env for custom api keys
 load_dotenv()
@@ -54,7 +55,7 @@ def create_conversation_chain(vector_store):
 # when a user asks a question, display the user question and answer after it's processed
 def handle_user_question(prompt):
     pdfs = st.session_state.files
-    if(len(pdfs) < 1):
+    if pdfs is None:
         return st.warning('Please upload a PDF(s) and click on the Process button to begin', icon="⚠️")
     else:
         
@@ -116,6 +117,16 @@ def check_and_load_pickle_files(pdfs):
                 pickle_data[each_pdf] = pickle.load(file)
     return pickle_data
 
+# function to read a document file 
+def docs_reader(file):
+    doc = Document(file)
+    all_text = []
+    for paragraphs in doc.paragraphs:
+        all_text.append(paragraphs.text)
+    
+    text = '\n'.join(all_text)
+    return text
+
 # main function of application, set the page config, sidebar and chat section of the app
 def main():
     st.set_page_config(page_title='Chat With Your PDF', page_icon=":books:")
@@ -140,17 +151,28 @@ def main():
     with st.sidebar:
         st.subheader("Your documents")
     
-        pdfs = st.file_uploader("Upload your pdf here and click on process", accept_multiple_files=True, type="pdf")
+        pdfs = st.file_uploader("Upload your pdf here and click on process", accept_multiple_files=False, type=["pdf",'docx', 'doc'])
+        document = ''
+            # and pdfs is not None
+        if st.button("Process") :
+            
+            st.session_state.files = pdfs
+            if pdfs.type == 'application/pdf':
+                document = get_pdf_text(pdfs)
+               
+            elif pdfs.type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                document = docs_reader(pdfs)
+                
+            else:
+                st.write("Unsupported file format. Please upload a PDF or DOCX file.")
 
-        st.session_state.files = pdfs
-        if st.button("Process"):
             with st.spinner("Processing"):
                 
-                raw_text = get_pdf_text(pdfs)
+                # raw_text = get_pdf_text(pdfs)
 
-               
+            
                 # split to chunks 
-                text_chunks =  get_text_chunks(raw_text)
+                text_chunks =  get_text_chunks(document)
                     # create a fiass vector store 
                 vector_store = openai_vector_store(text_chunks)
 
