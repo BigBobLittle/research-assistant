@@ -3,13 +3,14 @@ from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter 
 
-from langchain_community.embeddings.openai import OpenAIEmbeddings
+from langchain_openai.embeddings import OpenAIEmbeddings
+# from langchain_community.embeddings.openai import OpenAIEmbeddings
 from langchain_community.embeddings.huggingface import HuggingFaceInstructEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from langchain.memory import ConversationBufferMemory 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
-
+# from langchain_openai.chat_models import ChatOpenAI
 import pickle 
 import os
 
