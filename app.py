@@ -53,25 +53,29 @@ def create_conversation_chain(vector_store):
 
 # when a user asks a question, display the user question and answer after it's processed
 def handle_user_question(prompt):
-    pdfs = st.session_state.files
-    if(len(pdfs) < 1):
-        return st.warning('Please upload a PDF(s) and click on the Process button to begin', icon="⚠️")
-    else:
+        pdfs = st.session_state.files
         
-        response = st.session_state.conversation_chain({"question": prompt})
-        st.session_state.chat_history = response['chat_history']
-        
-        for i, message in enumerate(st.session_state.chat_history):
-            if i % 2 == 0:
-                human = st.chat_message("user")
-                # human.write(message.content, width=400, key='user_message')
-                human.markdown(f"<div class='user-msg'>{message.content}</div>", unsafe_allow_html=True)
-            else:
-                 ai_assistant =  st.chat_message('AI')
-                #  ai_assistant.markdown(message.content)
-                 ai_assistant.markdown(f"<div class='ai-msg'>{message.content}</div>", unsafe_allow_html=True)
+
+        if(len(pdfs) < 1):
+            return st.warning('Please upload a PDF(s) and click on the Process button to begin', icon="⚠️")
+        else:
+            response = st.session_state.conversation_chain({"question": prompt})
+            st.session_state.chat_history = response['chat_history']
+            # ai_assistant = st.empty().text('AI processing')
+            for i, message in enumerate(st.session_state.chat_history):
+                if i % 2 == 0:
+                    human = st.chat_message("user")
+                    # human.write(message.content, width=400, key='user_message')
+                    human.markdown(f"<div class='user-msg'>{message.content}</div>", unsafe_allow_html=True)
+                    
+                else:
+                    ai_assistant =  st.chat_message('AI')
+                    #  ai_assistant.markdown(message.content)
+                    ai_assistant.markdown(f"<div class='ai-msg'>{message.content}</div>", unsafe_allow_html=True)
+                    
 
 
+    # processing_message.empty()  # Clear the processing message once processing is complete
 # markdown to format the chat ui interface
 def markdown():
     return st.markdown(
@@ -157,7 +161,7 @@ def main():
                 #create conversation chain 
                 st.session_state.conversation_chain = create_conversation_chain(vector_store)
                 # st.write(vector_store)
-                # st.success("Done processing ")
+                st.success("AI bot is ready to answer your questions ")
         
 
 
