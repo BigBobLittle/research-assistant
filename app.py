@@ -2,22 +2,19 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter 
-
-# from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_community.embeddings.openai import OpenAIEmbeddings
 from langchain_community.embeddings.huggingface import HuggingFaceInstructEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from langchain.memory import ConversationBufferMemory 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
-
 import pickle 
 import os
 
 # load env for custom api keys
 load_dotenv()
 
-# receives any number of pdfs, reach each one of them and extract the text
+# receives any number of pdfs, read each one of them,  extract the text contents and return it
 def get_pdf_text(pdfs):
     text = ''
     
@@ -27,19 +24,27 @@ def get_pdf_text(pdfs):
         for each_pdf_doc in pdf_reader.pages:
             text+= each_pdf_doc.extract_text()
     return text
-            
-# function to split text from documents into smaller chunks of 1000 characters, with 200 overlap
+
+
+# The text contents we read from the  PDF may huge, more than what the we can pass to our AI model         
+# This function splits text from documents into smaller chunks of 1000 characters, with 200 overlap
+# we will later perform Text Embeddings with it
+# I'm using CharacterTextSplitter here, you can use RecursiveTextSplitter
 def get_text_chunks(text):
     text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200, length_function=len )
     return text_splitter.split_text(text)
 
 
-# create a FAISS vector store, using openapi embeddings 
+# create a FAISS vector store, using openapi embeddings
+# The FAISS vector store is in-memory vector store. 
+# you can use chroma/pincone to store your vectors 
 def openai_vector_store(text_chunks):
     embeddings = OpenAIEmbeddings()
     vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vector_store
 
+# the above function uses OpenAI's embeddings, which is paid for. 
+# If you machine is powerful, you can use one from huggingface 
 # create a vector store with hugging face instructor-xl model, -quiet slow
 def huggingface_vector_store(texts):
     embedding = HuggingFaceInstructEmbeddings(model_name='hkunlp/instructor-xl')
@@ -52,17 +57,16 @@ def create_conversation_chain(vector_store):
     conversation_chain = ConversationalRetrievalChain.from_llm(llm=llm, memory=memory, retriever=vector_store.as_retriever())
     return conversation_chain
 
-# when a user asks a question, display the user question and answer after it's processed
+# Accept users input, display both the question/answer  on the chat window after it's processed
 def handle_user_question(prompt):
         pdfs = st.session_state.files
         
-
         if(len(pdfs) < 1):
             return st.warning('Please upload a PDF(s) and click on the Process button to begin', icon="⚠️")
         else:
             response = st.session_state.conversation_chain({"question": prompt})
             st.session_state.chat_history = response['chat_history']
-            # ai_assistant = st.empty().text('AI processing')
+           
             for i, message in enumerate(st.session_state.chat_history):
                 if i % 2 == 0:
                     human = st.chat_message("user")
@@ -71,12 +75,11 @@ def handle_user_question(prompt):
                     
                 else:
                     ai_assistant =  st.chat_message('AI')
-                    #  ai_assistant.markdown(message.content)
                     ai_assistant.markdown(f"<div class='ai-msg'>{message.content}</div>", unsafe_allow_html=True)
                     
 
 
-    # processing_message.empty()  # Clear the processing message once processing is complete
+
 # markdown to format the chat ui interface
 def markdown():
     return st.markdown(
@@ -108,7 +111,7 @@ def markdown():
         unsafe_allow_html=True
     )
 
-# check if a pickle file of a document already exists, don't recreate it's embeddings 
+# check if a pickle file of a uploaded PDF document already exists in memory, don't recreate it's embeddings 
 def check_and_load_pickle_files(pdfs):
     pickle_data = {}
 
@@ -129,8 +132,6 @@ def main():
 
     if 'conversation_chain' not in st.session_state:
         st.session_state.conversation_chain = None 
-        # st.write('no conversation')
-    # st.text_input("Ask questions about your documents")
         
     ai_assistant =  st.chat_message('AI')
     ai_assistant.write("Hello, I'm Bob's AI assistant, Please upload a pdf, click on the Process button and let's chat")
@@ -152,11 +153,9 @@ def main():
             with st.spinner("Processing"):
                 
                 raw_text = get_pdf_text(pdfs)
-
-               
                 # split to chunks 
                 text_chunks =  get_text_chunks(raw_text)
-                    # create a fiass vector store 
+                # create a fiass vector store 
                 vector_store = openai_vector_store(text_chunks)
 
                 #create conversation chain 
